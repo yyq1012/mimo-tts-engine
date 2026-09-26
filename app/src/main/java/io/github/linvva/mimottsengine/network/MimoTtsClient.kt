@@ -263,7 +263,7 @@ class MimoTtsClient(
     )
 
     companion object {
-        private const val API_URL = "https://api.xiaomimimo.com/v1/chat/completions"
+        private const val API_URL = "https://token-plan-cn.xiaomimimo.com/v1/chat/completions"
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
         private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
