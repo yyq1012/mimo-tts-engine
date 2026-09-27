@@ -57,6 +57,11 @@ class MimoTtsClient(
             return@withContext
         }
 
+        if (!settings.useStreaming) {
+            synthesizeNonStreaming(text, settings, onEvent, onAudio)
+            return@withContext
+        }
+
         val body = json.encodeToString(
             ChatCompletionRequest(
                 messages = listOf(
@@ -163,6 +168,73 @@ class MimoTtsClient(
                 ?: throw MimoTtsException("Mimo API 响应中没有音频数据")
             Base64.decode(audio, Base64.DEFAULT)
         }
+    }
+
+    private suspend fun synthesizeNonStreaming(
+        text: String,
+        settings: TtsSettings,
+        onEvent: (MimoTtsEvent) -> Unit,
+        onAudio: suspend (ByteArray) -> Unit,
+    ) {
+        val body = json.encodeToString(
+            ChatCompletionRequest(
+                messages = listOf(
+                    Message(role = "user", content = settings.promptWithSpeed()),
+                    Message(role = "assistant", content = text),
+                ),
+                audio = AudioOptions(voice = settings.voice),
+                stream = false,
+            ),
+        )
+
+        val request = Request.Builder()
+            .url(API_URL)
+            .header("api-key", settings.apiKey)
+            .post(body.toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+
+        val call = httpClient.newCall(request)
+        val requestStartMs = SystemClock.elapsedRealtime()
+        onEvent(MimoTtsEvent.RequestStarted)
+        coroutineContext.ensureActive()
+        coroutineContext.job.invokeOnCompletion {
+            if (it is CancellationException) call.cancel()
+        }
+
+        call.execute().use { response ->
+            onEvent(MimoTtsEvent.ResponseHeaders(SystemClock.elapsedRealtime() - requestStartMs))
+            if (!response.isSuccessful) {
+                val errorBody = response.body.string().take(300)
+                val detail = errorBody.ifBlank { response.message }
+                throw MimoTtsException("Mimo API 请求失败：HTTP ${response.code} $detail")
+            }
+
+            val audio = parseNonStreamingAudioData(response.body.string())
+                ?: throw MimoTtsException("Mimo 响应缺少音频数据")
+            val decoded = Base64.decode(audio, Base64.DEFAULT)
+            val pcm = stripRiffHeaderIfNeeded(decoded)
+            onEvent(MimoTtsEvent.FirstAudio(SystemClock.elapsedRealtime() - requestStartMs, pcm.size))
+            onAudio(pcm)
+        }
+    }
+
+    private fun stripRiffHeaderIfNeeded(bytes: ByteArray): ByteArray {
+        if (bytes.size < 44 || bytes[0] != 'R'.code.toByte() || bytes[1] != 'I'.code.toByte()) {
+            return bytes
+        }
+        var i = 12
+        while (i + 8 <= bytes.size) {
+            if (
+                bytes[i] == 'd'.code.toByte() &&
+                bytes[i + 1] == 'a'.code.toByte() &&
+                bytes[i + 2] == 't'.code.toByte() &&
+                bytes[i + 3] == 'a'.code.toByte()
+            ) {
+                return bytes.copyOfRange(i + 8, bytes.size)
+            }
+            i++
+        }
+        return bytes
     }
 
     private fun parseStreamingAudioData(data: String): String? {
