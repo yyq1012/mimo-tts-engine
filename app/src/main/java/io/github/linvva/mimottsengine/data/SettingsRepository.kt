@@ -1,6 +1,7 @@
 package io.github.linvva.mimottsengine.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -21,6 +22,7 @@ class SettingsRepository(context: Context) {
             apiKey = preferences[Keys.API_KEY].orEmpty(),
             voice = voice,
             speed = preferences[Keys.SPEED] ?: 1.0f,
+            useStreaming = preferences[Keys.USE_STREAMING] ?: false,
             stylePrompt = preferences[Keys.STYLE_PROMPT] ?: DEFAULT_STYLE_PROMPT,
         )
     }
@@ -41,10 +43,15 @@ class SettingsRepository(context: Context) {
         dataStore.edit { it[Keys.STYLE_PROMPT] = value }
     }
 
+    suspend fun updateUseStreaming(value: Boolean) {
+        dataStore.edit { it[Keys.USE_STREAMING] = value }
+    }
+
     private object Keys {
         val API_KEY = stringPreferencesKey("api_key")
         val VOICE = stringPreferencesKey("voice")
         val SPEED = floatPreferencesKey("speed")
+        val USE_STREAMING = booleanPreferencesKey("use_streaming")
         val STYLE_PROMPT = stringPreferencesKey("style_prompt")
     }
 }
