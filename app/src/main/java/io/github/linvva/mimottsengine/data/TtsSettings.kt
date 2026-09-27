@@ -4,6 +4,7 @@ data class TtsSettings(
     val apiKey: String = "",
     val voice: String = VoicePresets.first().id,
     val speed: Float = 1.0f,
+    val useStreaming: Boolean = false,
     val stylePrompt: String = DEFAULT_STYLE_PROMPT,
 ) {
     val isReady: Boolean
