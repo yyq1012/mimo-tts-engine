@@ -73,6 +73,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -136,6 +137,7 @@ fun MimoTtsApp(
         onApiKeyChange = { scope.launch { settingsRepository.updateApiKey(it) } },
         onVoiceChange = { scope.launch { settingsRepository.updateVoice(it) } },
         onSpeedChange = { scope.launch { settingsRepository.updateSpeed(it) } },
+        onUseStreamingChange = { scope.launch { settingsRepository.updateUseStreaming(it) } },
         onPromptChange = { scope.launch { settingsRepository.updateStylePrompt(it) } },
         onResetPrompt = { scope.launch { settingsRepository.updateStylePrompt(DEFAULT_STYLE_PROMPT) } },
         onTestSpeak = onTestSpeak,
@@ -159,6 +161,7 @@ private fun MimoTtsScreen(
     onApiKeyChange: (String) -> Unit,
     onVoiceChange: (String) -> Unit,
     onSpeedChange: (Float) -> Unit,
+    onUseStreamingChange: (Boolean) -> Unit,
     onPromptChange: (String) -> Unit,
     onResetPrompt: () -> Unit,
     onTestSpeak: (String, (String, Boolean) -> Unit) -> Unit,
@@ -307,6 +310,7 @@ private fun MimoTtsScreen(
                                 },
                                 onVoiceChange = onVoiceChange,
                                 onSpeedChange = onSpeedChange,
+                                onUseStreamingChange = onUseStreamingChange,
                                 testText = testText,
                                 onTestTextChange = { testText = it },
                                 testResult = testResult,
@@ -558,6 +562,7 @@ private fun TtsTabContent(
     onOpenSettings: () -> Unit,
     onVoiceChange: (String) -> Unit,
     onSpeedChange: (Float) -> Unit,
+    onUseStreamingChange: (Boolean) -> Unit,
     testText: String,
     onTestTextChange: (String) -> Unit,
     testResult: String,
@@ -568,7 +573,11 @@ private fun TtsTabContent(
 
     SettingsSection(title = "声音", icon = Icons.Rounded.RecordVoiceOver) {
         VoicePicker(settings.voice, onVoiceChange)
-        SpeedControl(settings = settings, onSpeedChange = onSpeedChange)
+        SpeedControl(
+            settings = settings,
+            onSpeedChange = onSpeedChange,
+            onUseStreamingChange = onUseStreamingChange,
+        )
     }
 
     TestPanel(
@@ -726,6 +735,7 @@ private fun ApiKeyField(
 private fun SpeedControl(
     settings: TtsSettings,
     onSpeedChange: (Float) -> Unit,
+    onUseStreamingChange: (Boolean) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -755,6 +765,32 @@ private fun SpeedControl(
                     label = { Text(label) },
                 )
             }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "流式合成",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = if (settings.useStreaming) {
+                        "开：出声更快，但语速/风格指令不生效"
+                    } else {
+                        "关：语速指令生效，首字稍慢（推荐）"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = settings.useStreaming,
+                onCheckedChange = onUseStreamingChange,
+            )
         }
     }
 }
